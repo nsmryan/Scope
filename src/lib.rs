@@ -266,7 +266,6 @@ struct PackedBitScope {
     bytes: Vec<u8>,
     pos: usize,
     bits_used: u8,
-    marker: PhantomData<B>
 }
 
 impl PackedBitScope {
@@ -313,27 +312,10 @@ impl Scope<u32, usize> for PackedBitScope {
         self.pos = clamp(pos, 0, (self.bytes.len() * 8) - 1);
     }
 }
-*/
 
 impl Scope<u32, isize> for PackedBitScope {
     fn adjust(&mut self, offset: isize) {
         self.pos = clamp((self.pos as isize) + offset, 0, ((8 * self.bytes.len()) - 1) as isize) as usize;
     }
 }
-
-#[test]
-fn test_bit_vec_scope() {
-    let mut bit_vec_scope = PackedBitScope::with_bytes(vec![1,2,3,4,0x80]);
-
-    assert_eq!(bit_vec_scope.get(), true);
-
-    bit_vec_scope.set(false);
-    assert_eq!(bit_vec_scope.get(), false);
-
-    bit_vec_scope.adjust(1usize);
-    bit_vec_scope.set(true);
-    assert_eq!(bit_vec_scope.bytes[0], 0x02);
-
-    bit_vec_scope.adjust(100isize);
-    assert_eq!(bit_vec_scope.get(), true);
-}
+*/
