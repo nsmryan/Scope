@@ -1,7 +1,7 @@
 use std::ops::{BitAnd, Not, Shl, Shr, BitOr};
 
 
-trait Scope<A> {
+trait Lens<A> {
     fn get(&self) -> A;
 
     fn set(&mut self, a: A);
@@ -11,12 +11,8 @@ trait Scope<A> {
     }
 }
 
-trait AbsScope<A>: Scope<A> {
-    fn set_pos(&mut self, pos: usize);
-}
-
-trait RelScope<A>: Scope<A> {
-    fn move_pos(&mut self, offset: isize);
+trait Scope<A, I>: Lens<A> {
+    fn move(&mut self, index: I);
 }
 
 
@@ -37,13 +33,13 @@ impl<A: Copy> Scope<A> for VecScope<A> {
     }
 }
 
-impl <A: Copy> AbsScope<A> for VecScope<A> {
+impl <A: Copy> Scope<A, usize> for VecScope<A> {
     fn set_pos(&mut self, pos: usize) {
         self.pos = pos;
     }
 }
 
-impl <A: Copy> RelScope<A> for VecScope<A> {
+impl <A: Copy> Scope<A, isize> for VecScope<A> {
     fn move_pos(&mut self, offset: isize) {
         self.pos = ((self.pos as isize) + offset) as usize;
     }
