@@ -260,3 +260,67 @@ fn test_bit_word_scope() {
     assert_eq!(current, 0x07);
 }
 
+
+/* Packed Bit Scope */
+#[derive(Clone, PartialEq, Eq)]
+struct PackedBitScope<B> {
+    bytes: Vec<u8>,
+    pos: usize,
+    bits_used: u8,
+    marker: PhantomData<B>
+}
+
+impl<B> PackedBitScope<B> {
+    fn with_words(bytes: Vec<u8>, bits_used: u8) -> PackedBitScope<B> {
+        PackedBitScope {
+            bytes: bytes,
+            pos: 0,
+            bits_used: bits_used,
+        }
+    }
+}
+
+impl<B> Lens<B> for PackedBitScope<B> {
+    fn get(&self) -> B {
+        let index = self.pos / 8;
+        let bit_index = self.pos % 8;
+        (self.bytes[index] & (1 << bit_index)) != 0
+    }
+
+    fn set(&mut self, a: B) {
+        let index = self.pos / 8;
+        let bit_index = self.pos % 8;
+        self.bytes[index] = (self.bytes[index] & !(1 << bit_index)) | ((a as u8) << bit_index);
+    }
+}
+
+impl<B> Scope<B, usize> for PackedBitScope<B> {
+    fn adjust(&mut self, pos: usize) {
+        // NOTE does not take into account extra bits at end of last byte
+        self.pos = clamp(pos, 0, (self.bytes.len() * 8) - 1);
+    }
+}
+
+impl<B> Scope<B, isize> for PackedBitScope<B> {
+    fn adjust(&mut self, offset: isize) {
+        // NOTE does not take into account extra bits at end of last byte
+        self.pos = clamp((self.pos as isize) + offset, 0, ((8 * self.bytes.len()) - 1) as isize) as usize;
+    }
+}
+
+#[test]
+fn test_bit_vec_scope() {
+    let mut bit_vec_scope = PackedBitScope::with_bytes(vec![1,2,3,4,0x80]);
+
+    assert_eq!(bit_vec_scope.get(), true);
+
+    bit_vec_scope.set(false);
+    assert_eq!(bit_vec_scope.get(), false);
+
+    bit_vec_scope.adjust(1usize);
+    bit_vec_scope.set(true);
+    assert_eq!(bit_vec_scope.bytes[0], 0x02);
+
+    bit_vec_scope.adjust(100isize);
+    assert_eq!(bit_vec_scope.get(), true);
+}
