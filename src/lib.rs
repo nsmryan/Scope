@@ -1,4 +1,12 @@
-use std::ops::{BitAnd, Not, Shl, Shr, BitOr};
+extern crate num;
+
+use std::ops::{Shl, ShlAssign, Shr, ShrAssign, Rem, RemAssign, BitOrAssign, BitXor, Not, Sub, BitAnd, BitOr};
+use std::fmt::Debug;
+use std::marker::PhantomData;
+
+use num::Num;
+use num::FromPrimitive;
+use num::clamp;
 
 
 trait Lens<A> {
@@ -12,8 +20,24 @@ trait Lens<A> {
 }
 
 trait Scope<A, I>: Lens<A> {
-    fn move(&mut self, index: I);
+    fn adjust(&mut self, index: I);
 }
+
+
+/* BitWise trait for Primitive Types */
+trait BitWise: Sized + Copy + Debug + PartialOrd + Shl<u32, Output = Self> +
+               ShlAssign<u32> + Shr<u32, Output = Self> + ShrAssign<u32> +
+               Rem<Self, Output = Self> + RemAssign<Self> + BitOrAssign<Self>
+               + BitXor<Self, Output = Self> + Not<Output = Self> +
+               Sub<Self, Output = Self> + BitAnd<Output = Self> + BitOr<Output = Self> + Num +
+               FromPrimitive
+
+{}
+
+impl BitWise for u8  {}
+impl BitWise for u16 {}
+impl BitWise for u32 {}
+impl BitWise for u64 {}
 
 
 /* Vec Scope */
@@ -23,7 +47,18 @@ struct VecScope<A> {
     pos: usize,
 }
 
-impl<A: Copy> Scope<A> for VecScope<A> {
+// NOTE this does not account for empty vectors
+// Lens should probably return Option<A>
+impl<A> VecScope<A> {
+    fn with_vec(vec: Vec<A>) -> VecScope<A> {
+        VecScope {
+            vec: vec,
+            pos: 0,
+        }
+    }
+}
+
+impl<A: Copy> Lens<A> for VecScope<A> {
     fn get(&self) -> A {
         self.vec[self.pos]
     }
@@ -34,80 +69,151 @@ impl<A: Copy> Scope<A> for VecScope<A> {
 }
 
 impl <A: Copy> Scope<A, usize> for VecScope<A> {
-    fn set_pos(&mut self, pos: usize) {
-        self.pos = pos;
+    fn adjust(&mut self, pos: usize) {
+        self.pos = clamp(pos, 0, self.vec.len() - 1);
     }
 }
 
 impl <A: Copy> Scope<A, isize> for VecScope<A> {
-    fn move_pos(&mut self, offset: isize) {
-        self.pos = ((self.pos as isize) + offset) as usize;
+    fn adjust(&mut self, offset: isize) {
+        self.pos = clamp((self.pos as isize) + offset, 0, (self.vec.len() - 1) as isize) as usize;
     }
+}
+
+#[test]
+fn test_vec_scope() {
+    let mut vec_scope = VecScope::with_vec(vec![1,2,3,4,5]);
+
+    assert_eq!(vec_scope.get(), 1);
+
+    vec_scope.set(100);
+    assert_eq!(vec_scope.get(), 100);
+
+    vec_scope.adjust(1isize);
+    assert_eq!(vec_scope.get(), 2);
+
+    vec_scope.adjust(1isize);
+    assert_eq!(vec_scope.get(), 3);
+
+    vec_scope.adjust(3usize);
+    assert_eq!(vec_scope.get(), 4);
+
+    vec_scope.adjust(100usize);
+    assert_eq!(vec_scope.get(), 5);
+
+    vec_scope.adjust(-1isize);
+    assert_eq!(vec_scope.get(), 4);
+
+    vec_scope.adjust(100isize);
+    assert_eq!(vec_scope.get(), 5);
+
+    vec_scope.set(500);
+    assert_eq!(vec_scope.get(), 500);
+
+    vec_scope.adjust(-100isize);
+    assert_eq!(vec_scope.get(), 100);
 }
 
 
 /* Bit Vec Scope */
-type BitVecScope = VecScope<u32>;
+#[derive(Clone, PartialEq, Eq)]
+struct BitVecScope {
+    bytes: Vec<u8>,
+    pos: usize,
+}
 
-impl Scope<bool> for BitVecScope {
+impl BitVecScope {
+    fn with_bytes(bytes: Vec<u8>) -> BitVecScope {
+        BitVecScope {
+            bytes: bytes,
+            pos: 0,
+        }
+    }
+}
+
+impl Lens<bool> for BitVecScope {
     fn get(&self) -> bool {
-        let index = self.pos / 32;
-        let bit_index = self.pos % 32;
-        (self.vec[index] & (1 << bit_index)) != 0
+        let index = self.pos / 8;
+        let bit_index = self.pos % 8;
+        (self.bytes[index] & (1 << bit_index)) != 0
     }
 
     fn set(&mut self, a: bool) {
-        let index = self.pos / 32;
-        let bit_index = self.pos % 32;
-        self.vec[index] = (self.vec[index] & !(1 << bit_index)) | ((a as u32) << bit_index);
+        let index = self.pos / 8;
+        let bit_index = self.pos % 8;
+        self.bytes[index] = (self.bytes[index] & !(1 << bit_index)) | ((a as u8) << bit_index);
     }
 }
 
-impl AbsScope<bool> for BitVecScope {
-    fn set_pos(&mut self, pos: usize) {
-        self.pos = pos;
+impl Scope<bool, usize> for BitVecScope {
+    fn adjust(&mut self, pos: usize) {
+        self.pos = clamp(pos, 0, (self.bytes.len() * 8) - 1);
     }
 }
 
-impl RelScope<bool> for BitVecScope {
-    fn move_pos(&mut self, offset: isize) {
-        self.pos = ((self.pos as isize) + offset) as usize;
+impl Scope<bool, isize> for BitVecScope {
+    fn adjust(&mut self, offset: isize) {
+        self.pos = clamp((self.pos as isize) + offset, 0, ((8 * self.bytes.len()) - 1) as isize) as usize;
     }
+}
+
+#[test]
+fn test_bit_vec_scope() {
+    let mut bit_vec_scope = BitVecScope::with_bytes(vec![1,2,3,4,0x80]);
+
+    assert_eq!(bit_vec_scope.get(), true);
+
+    bit_vec_scope.set(false);
+    assert_eq!(bit_vec_scope.get(), false);
+
+    bit_vec_scope.adjust(1usize);
+    bit_vec_scope.set(true);
+    assert_eq!(bit_vec_scope.bytes[0], 0x02);
+
+    bit_vec_scope.adjust(100isize);
+    assert_eq!(bit_vec_scope.get(), true);
 }
 
 
 /* Bit Word Scope */
-struct BitWordScope {
-    vec: Vec<u32>,
-    bits_used: usize,
-    pos: usize,
-}
-
-impl Scope<bool> for BitWordScope {
-    fn get(&self) -> bool {
-        let index = self.pos / self.bits_used;
-        let bit_index = self.pos % self.bits_used;
-        (self.vec[index] & (1 << bit_index)) != 0
-    }
-
-    fn set(&mut self, a: bool) {
-        let index = self.pos / self.bits_used;
-        let bit_index = self.pos % self.bits_used;
-        self.vec[index] = (self.vec[index] & !(1 << bit_index)) | ((a as u32) << bit_index);
-    }
-}
-
-
-/* Word Scope */
-struct WordScope<B> {
+struct BitWordScope<B> {
     vec: Vec<B>,
     bits_used: usize,
     pos: usize,
 }
 
-impl<B: Copy> Scope<B> for WordScope<B> {
+impl<B> BitWordScope<B> {
+    fn with_words(vec: Vec<B>, bits_used: usize) -> BitWordScope<B> {
+        BitWordScope {
+            vec: vec,
+            bits_used: bits_used,
+            pos: 0,
+        }
+    }
+}
+
+impl<B: BitWise> Lens<bool> for BitWordScope<B> {
+    fn get(&self) -> bool {
+        let index = self.pos / self.bits_used;
+        let bit_index = (self.pos % self.bits_used) as u32;
+        (self.vec[index] & (B::one() << bit_index)) != B::zero()
+    }
+
+    fn set(&mut self, a: bool) {
+        let index = self.pos / self.bits_used;
+        let bit_index = (self.pos % self.bits_used) as u32;
+
+        let loc_cleared = self.vec[index] & !(B::one() << bit_index);
+        let set_bit = B::from_u8(a as u8).unwrap() << bit_index;
+        let loc_set = loc_cleared | set_bit;
+        self.vec[index] = loc_set;
+    }
+}
+
+impl<B: BitWise> Lens<B> for BitWordScope<B> {
     fn get(&self) -> B {
-        self.vec[self.pos / self.bits_used]
+        let index = self.pos / self.bits_used;
+        self.vec[index]
     }
 
     fn set(&mut self, a: B) {
@@ -116,23 +222,41 @@ impl<B: Copy> Scope<B> for WordScope<B> {
     }
 }
 
-impl<A: Copy> AbsScope<A> for WordScope<A> {
-    fn set_pos(&mut self, pos: usize) {
-        self.pos = pos;
+impl<B: BitWise> Scope<B, usize> for BitWordScope<B> {
+    fn adjust(&mut self, pos: usize) {
+        self.pos = clamp(pos, 0, (self.vec.len() * self.bits_used) - 1);
     }
 }
 
-impl<A: Copy> RelScope<A> for WordScope<A> {
-    fn move_pos(&mut self, offset: isize) {
-        self.pos = ((self.pos as isize) + offset) as usize;
+impl<B: BitWise> Scope<B, isize> for BitWordScope<B> {
+    fn adjust(&mut self, offset: isize) {
+        self.pos = clamp((self.pos as isize) + offset, 0, ((self.bits_used * self.vec.len()) - 1) as isize) as usize;
     }
 }
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
-    }
+#[test]
+fn test_bit_word_scope() {
+    let mut bit_word_scope: BitWordScope<u8> = BitWordScope::with_words(vec![1,2,3,4,0x7], 3);
+
+    let current: bool = bit_word_scope.get();
+    assert_eq!(current, true);
+
+    let current: u8 = bit_word_scope.get();
+    assert_eq!(current, 1);
+
+    bit_word_scope.set(false);
+    let current: bool = bit_word_scope.get();
+    assert_eq!(current, false);
+
+    bit_word_scope.adjust(1usize);
+    bit_word_scope.set(true);
+    assert_eq!(bit_word_scope.vec[0], 0x02);
+
+    bit_word_scope.adjust(100isize);
+    let current: bool = bit_word_scope.get();
+    assert_eq!(current, true);
+
+    let current: u8 = bit_word_scope.get();
+    assert_eq!(current, 0x07);
 }
 
