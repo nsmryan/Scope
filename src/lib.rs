@@ -2,7 +2,6 @@ extern crate num;
 
 use std::ops::{Shl, ShlAssign, Shr, ShrAssign, Rem, RemAssign, BitOrAssign, BitXor, Not, Sub, BitAnd, BitOr};
 use std::fmt::Debug;
-use std::marker::PhantomData;
 
 use num::Num;
 use num::FromPrimitive;
@@ -263,15 +262,15 @@ fn test_bit_word_scope() {
 
 /* Packed Bit Scope */
 #[derive(Clone, PartialEq, Eq)]
-struct PackedBitScope<B> {
+struct PackedBitScope {
     bytes: Vec<u8>,
     pos: usize,
     bits_used: u8,
     marker: PhantomData<B>
 }
 
-impl<B> PackedBitScope<B> {
-    fn with_words(bytes: Vec<u8>, bits_used: u8) -> PackedBitScope<B> {
+impl PackedBitScope {
+    fn with_words(bytes: Vec<u8>, bits_used: u8) -> PackedBitScope {
         PackedBitScope {
             bytes: bytes,
             pos: 0,
@@ -280,30 +279,44 @@ impl<B> PackedBitScope<B> {
     }
 }
 
-impl<B> Lens<B> for PackedBitScope<B> {
-    fn get(&self) -> B {
+impl Lens<bool> for PackedBitScope {
+    fn get(&self) -> bool {
         let index = self.pos / 8;
         let bit_index = self.pos % 8;
         (self.bytes[index] & (1 << bit_index)) != 0
     }
 
-    fn set(&mut self, a: B) {
+    fn set(&mut self, a: bool) {
         let index = self.pos / 8;
         let bit_index = self.pos % 8;
         self.bytes[index] = (self.bytes[index] & !(1 << bit_index)) | ((a as u8) << bit_index);
     }
 }
 
-impl<B> Scope<B, usize> for PackedBitScope<B> {
-    fn adjust(&mut self, pos: usize) {
-        // NOTE does not take into account extra bits at end of last byte
-        self.pos = clamp(pos, 0, (self.bytes.len() * 8) - 1);
+/*
+impl Lens<u32> for PackedBitScope {
+    fn get(&self) -> u32 {
+        let index = self.pos / 8;
+        let bit_index = self.pos % 8;
+        (self.bytes[index] & (1 << bit_index)) != 0
+    }
+
+    fn set(&mut self, a: u32) {
+        let index = self.pos / 8;
+        let bit_index = self.pos % 8;
+        self.bytes[index] = (self.bytes[index] & !(1 << bit_index)) | ((a as u8) << bit_index);
     }
 }
 
-impl<B> Scope<B, isize> for PackedBitScope<B> {
+impl Scope<u32, usize> for PackedBitScope {
+    fn adjust(&mut self, pos: usize) {
+        self.pos = clamp(pos, 0, (self.bytes.len() * 8) - 1);
+    }
+}
+*/
+
+impl Scope<u32, isize> for PackedBitScope {
     fn adjust(&mut self, offset: isize) {
-        // NOTE does not take into account extra bits at end of last byte
         self.pos = clamp((self.pos as isize) + offset, 0, ((8 * self.bytes.len()) - 1) as isize) as usize;
     }
 }
