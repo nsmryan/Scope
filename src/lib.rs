@@ -1,26 +1,19 @@
 extern crate num;
 
+mod lens;
+mod scope;
+mod vec_scope;
+mod bit_vec_scope;
+
+
 use std::ops::{Shl, ShlAssign, Shr, ShrAssign, Rem, RemAssign, BitOrAssign, BitXor, Not, Sub, BitAnd, BitOr};
 use std::fmt::Debug;
 
 use num::Num;
 use num::FromPrimitive;
-use num::clamp;
 
-
-trait Lens<A> {
-    fn get(&self) -> A;
-
-    fn set(&mut self, a: A);
-
-    fn modify<F: Fn(A) -> A>(&mut self, f: F) {
-        self.set(f(self.get()));
-    }
-}
-
-trait Scope<A, I>: Lens<A> {
-    fn adjust(&mut self, index: I);
-}
+use vec_scope::*;
+use bit_vec_scope::*;
 
 
 /* BitWise trait for Primitive Types */
@@ -39,141 +32,7 @@ impl BitWise for u32 {}
 impl BitWise for u64 {}
 
 
-/* Vec Scope */
-#[derive(Clone, PartialEq, Eq)]
-struct VecScope<A> {
-    vec: Vec<A>,
-    pos: usize,
-}
-
-// NOTE this does not account for empty vectors
-// Lens should probably return Option<A>
-impl<A> VecScope<A> {
-    fn with_vec(vec: Vec<A>) -> VecScope<A> {
-        VecScope {
-            vec: vec,
-            pos: 0,
-        }
-    }
-}
-
-impl<A: Copy> Lens<A> for VecScope<A> {
-    fn get(&self) -> A {
-        self.vec[self.pos]
-    }
-
-    fn set(&mut self, a: A) {
-        self.vec[self.pos] = a;
-    }
-}
-
-impl <A: Copy> Scope<A, usize> for VecScope<A> {
-    fn adjust(&mut self, pos: usize) {
-        self.pos = clamp(pos, 0, self.vec.len() - 1);
-    }
-}
-
-impl <A: Copy> Scope<A, isize> for VecScope<A> {
-    fn adjust(&mut self, offset: isize) {
-        self.pos = clamp((self.pos as isize) + offset, 0, (self.vec.len() - 1) as isize) as usize;
-    }
-}
-
-#[test]
-fn test_vec_scope() {
-    let mut vec_scope = VecScope::with_vec(vec![1,2,3,4,5]);
-
-    assert_eq!(vec_scope.get(), 1);
-
-    vec_scope.set(100);
-    assert_eq!(vec_scope.get(), 100);
-
-    vec_scope.adjust(1isize);
-    assert_eq!(vec_scope.get(), 2);
-
-    vec_scope.adjust(1isize);
-    assert_eq!(vec_scope.get(), 3);
-
-    vec_scope.adjust(3usize);
-    assert_eq!(vec_scope.get(), 4);
-
-    vec_scope.adjust(100usize);
-    assert_eq!(vec_scope.get(), 5);
-
-    vec_scope.adjust(-1isize);
-    assert_eq!(vec_scope.get(), 4);
-
-    vec_scope.adjust(100isize);
-    assert_eq!(vec_scope.get(), 5);
-
-    vec_scope.set(500);
-    assert_eq!(vec_scope.get(), 500);
-
-    vec_scope.adjust(-100isize);
-    assert_eq!(vec_scope.get(), 100);
-}
-
-
-/* Bit Vec Scope */
-#[derive(Clone, PartialEq, Eq)]
-struct BitVecScope {
-    bytes: Vec<u8>,
-    pos: usize,
-}
-
-impl BitVecScope {
-    fn with_bytes(bytes: Vec<u8>) -> BitVecScope {
-        BitVecScope {
-            bytes: bytes,
-            pos: 0,
-        }
-    }
-}
-
-impl Lens<bool> for BitVecScope {
-    fn get(&self) -> bool {
-        let index = self.pos / 8;
-        let bit_index = self.pos % 8;
-        (self.bytes[index] & (1 << bit_index)) != 0
-    }
-
-    fn set(&mut self, a: bool) {
-        let index = self.pos / 8;
-        let bit_index = self.pos % 8;
-        self.bytes[index] = (self.bytes[index] & !(1 << bit_index)) | ((a as u8) << bit_index);
-    }
-}
-
-impl Scope<bool, usize> for BitVecScope {
-    fn adjust(&mut self, pos: usize) {
-        self.pos = clamp(pos, 0, (self.bytes.len() * 8) - 1);
-    }
-}
-
-impl Scope<bool, isize> for BitVecScope {
-    fn adjust(&mut self, offset: isize) {
-        self.pos = clamp((self.pos as isize) + offset, 0, ((8 * self.bytes.len()) - 1) as isize) as usize;
-    }
-}
-
-#[test]
-fn test_bit_vec_scope() {
-    let mut bit_vec_scope = BitVecScope::with_bytes(vec![1,2,3,4,0x80]);
-
-    assert_eq!(bit_vec_scope.get(), true);
-
-    bit_vec_scope.set(false);
-    assert_eq!(bit_vec_scope.get(), false);
-
-    bit_vec_scope.adjust(1usize);
-    bit_vec_scope.set(true);
-    assert_eq!(bit_vec_scope.bytes[0], 0x02);
-
-    bit_vec_scope.adjust(100isize);
-    assert_eq!(bit_vec_scope.get(), true);
-}
-
-
+/*
 /* Bit Word Scope */
 struct BitWordScope<B> {
     vec: Vec<B>,
@@ -318,4 +177,5 @@ impl Scope<u32, isize> for PackedBitScope {
         self.pos = clamp((self.pos as isize) + offset, 0, ((8 * self.bytes.len()) - 1) as isize) as usize;
     }
 }
+*/
 */
