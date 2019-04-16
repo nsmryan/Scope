@@ -4,6 +4,8 @@ mod lens;
 mod scope;
 mod vec_scope;
 mod bit_vec_scope;
+mod bit_word_scope;
+mod shape;
 
 
 use std::ops::{Shl, ShlAssign, Shr, ShrAssign, Rem, RemAssign, BitOrAssign, BitXor, Not, Sub, BitAnd, BitOr};
@@ -14,6 +16,8 @@ use num::FromPrimitive;
 
 use vec_scope::*;
 use bit_vec_scope::*;
+use bit_word_scope::*;
+use shape::*;
 
 
 /* BitWise trait for Primitive Types */
@@ -34,21 +38,6 @@ impl BitWise for u64 {}
 
 /*
 /* Bit Word Scope */
-struct BitWordScope<B> {
-    vec: Vec<B>,
-    bits_used: usize,
-    pos: usize,
-}
-
-impl<B> BitWordScope<B> {
-    fn with_words(vec: Vec<B>, bits_used: usize) -> BitWordScope<B> {
-        BitWordScope {
-            vec: vec,
-            bits_used: bits_used,
-            pos: 0,
-        }
-    }
-}
 
 impl<B: BitWise> Lens<bool> for BitWordScope<B> {
     fn get(&self) -> bool {

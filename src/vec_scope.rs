@@ -3,6 +3,7 @@ use std::rc::Rc;
 
 use crate::lens::*;
 use crate::scope::*;
+use crate::shape::*;
 
 
 /* Vec Scope */
@@ -22,6 +23,14 @@ impl<A> VecScope<A> {
         } else {
             None
         }
+    }
+}
+
+impl<A> Shape for VecScope<A> {
+    type Shape = usize;
+
+    fn shape(&self) -> usize {
+        self.vec.len()
     }
 }
 

@@ -45,7 +45,8 @@ fn get_vec_scope(bit_vec_scope: &BitVecScope) -> bool {
 fn set_vec_scope(bit_vec_scope: &mut BitVecScope, a: bool) {
     let bit_index = bit_vec_scope.pos % 8;
     let byte = bit_vec_scope.current_byte();
-    bit_vec_scope.bytes[bit_vec_scope.byte_index()] =
+    let index = bit_vec_scope.byte_index();
+    bit_vec_scope.bytes[index] =
         (bit_vec_scope.current_byte() & !(1 << bit_index)) | ((a as u8) << bit_index);
 }
 
