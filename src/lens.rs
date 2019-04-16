@@ -1,10 +1,9 @@
-use std::boxed::Box;
+//use std::boxed::Box;
 use std::rc::Rc;
 
 
-
-type Getter<S, A> = Fn(&S) -> A;
-type Setter<S, A> = Fn(&mut S, A);
+pub type Getter<S, A> = Fn(&S) -> A;
+pub type Setter<S, A> = Fn(&mut S, A);
 
 pub struct Lens<S, A> {
     pub view: Rc<Getter<S, A>>,
