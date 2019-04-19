@@ -40,6 +40,7 @@ impl PackedBitScope {
              Rc::new(|mut bytes: &mut PackedBitScope, a: bool| set_packedbit_scope_bits(bytes, a)))
     }
 
+    // TODO add lens for N: Numeric
     /*
     fn bit_lens<B>() -> Lens<PackedBitScope, B> {
         lens(Rc::new(|bytes: &PackedBitScope<B>| get_packedbit_scope_bits(bytes)),
@@ -83,4 +84,6 @@ fn set_packedbit_scope_num<N: Numeric>(packedbit_scope: &PackedBitScope, n: N) {
     writer.skip(bit_index);
     writer.write(N::bits_size(), n);
 }
+
+// TODO consider lens for arbitrary data, providing a bitstream interface for encoding/decoding
 

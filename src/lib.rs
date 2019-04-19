@@ -13,11 +13,18 @@ mod types;
 
 use num::Num;
 
-//use vec_scope::*;
-//use bit_vec_scope::*;
-//use bit_word_scope::*;
-//use shape::*;
+// TODO add benchmarking:
+// bools for different systems
+// packed vs sparse bit words of different sizes- does alignment or
+// storage win?
+//
+// sparse traversal like mutation- which wins?
 
+// TODO mapping with iterator and application function
+// or iterator of Locs that give access to a location
+//
+// TODO combining these traversals- merging, pairing,
+// merging pairs, composing downwards
 
 
 /*
