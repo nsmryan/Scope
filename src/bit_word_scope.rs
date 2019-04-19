@@ -59,7 +59,7 @@ fn set_bitword_scope_bits<B: BitWise>(bitword_scope: &mut BitWordScope<B>, a: bo
     let bit_index = (bitword_scope.pos % bitword_scope.bits_used) as u32;
 
     let loc_cleared = bitword_scope.vec[index] & !(B::one() << bit_index);
-    let set_bit = B::from_u8(a as u8).unwrap() << bit_index;
+    let set_bit = B::from_u8(a as u8) << bit_index;
     let loc_set = loc_cleared | set_bit;
     bitword_scope.vec[index] = loc_set;
 }

@@ -1,4 +1,5 @@
 extern crate num;
+extern crate bitstream_io;
 
 mod lens;
 mod scope;

@@ -6,3 +6,4 @@ edition = "2018"
 
 [dependencies]
 num = "0.2"
+bitstream-io = "0.8"
