@@ -40,13 +40,16 @@ impl PackedBitScope {
              Rc::new(|mut bytes: &mut PackedBitScope, a: bool| set_packedbit_scope_bits(bytes, a)))
     }
 
-    // TODO add lens for N: Numeric
-    /*
-    fn bit_lens<B>() -> Lens<PackedBitScope, B> {
-        lens(Rc::new(|bytes: &PackedBitScope<B>| get_packedbit_scope_bits(bytes)),
-             Rc::new(|mut bytes: &mut PackedBitScope<B>, a: bool| set_packedbit_scope_bits(bytes, a)))
+    fn num_lens<N: Numeric>() -> Lens<PackedBitScope, N> {
+        lens(Rc::new(|bytes: &PackedBitScope| get_packedbit_scope_num(bytes)),
+             Rc::new(|mut bytes: &mut PackedBitScope, n: N| set_packedbit_scope_num(bytes, n)))
     }
-    */
+
+    fn stream_lens() -> Lens<PackedBitScope, BitReader<Cursor<&[u8]>, BigEndian>> {
+        lens(Rc::new(|bytes: &PackedBitScope| get_packedbit_scope_stream(bytes)),
+             Rc::new(|mut bytes: &mut PackedBitScope,
+                     bit_reader: BitReader<Cursor<&[u8], BigEndian>| set_packedbit_scope_stream(bytes, n)))
+    }
 }
 
 fn get_packedbit_scope_bits(packedbit_scope: &PackedBitScope) -> bool {
@@ -75,15 +78,49 @@ fn get_packedbit_scope_num<N: Numeric>(packedbit_scope: &PackedBitScope) -> N {
     reader.read(N::bits_size()).unwrap()
 }
 
-fn set_packedbit_scope_num<N: Numeric>(packedbit_scope: &PackedBitScope, n: N) {
+fn set_packedbit_scope_num<N: Numeric>(packedbit_scope: &mut PackedBitScope, n: N) {
     let index = packedbit_scope.pos / 8;
     let bit_index = (packedbit_scope.pos % 8) as u32;
 
-    let mut writer = BitWriter::endian(&mut packedbit_scope.bytes[index..].to_vec(), BigEndian);
+    let initial_bits = packedbit_scope.bytes[index] as u32 & (2u32.pow(bit_index) - 1);
 
-    writer.skip(bit_index);
+    let mut writer = BitWriter::endian(&mut packedbit_scope.bytes[index..], BigEndian);
+
+    writer.write(initial_bits, bit_index);
     writer.write(N::bits_size(), n);
 }
 
 // TODO consider lens for arbitrary data, providing a bitstream interface for encoding/decoding
+fn get_packedbit_scope_stream<R: Read, N: Numeric>(packedbit_scope: &PackedBitScope) -> BitReader<Cursor<&[u8]>, BigEndian> {
+    let index = packedbit_scope.pos / 8;
+    let bit_index = (packedbit_scope.pos % 8) as u32;
 
+    let mut reader = BitReader::endian(Cursor::new(&packedbit_scope.bytes[index..]), BigEndian);
+
+    reader.skip(bit_index);
+
+    reader
+}
+
+fn set_packedbit_scope_stream<R: Read, N: Numeric>(packedbit_scope: &mut PackedBitScope, bit_reader: &mut BitReader<R, BigEndian>) {
+    let index = packedbit_scope.pos / 8;
+    let bit_index = (packedbit_scope.pos % 8) as u32;
+
+    let initial_bits = packedbit_scope.bytes[index] as u32 & (2u32.pow(bit_index) - 1);
+
+    let mut writer = BitWriter::endian(&mut packedbit_scope.bytes[index..], BigEndian);
+
+    writer.write(initial_bits, bit_index);
+
+    while !bit_reader.byte_aligned() {
+        if let Ok(bit) = bit_reader.read_bit() {
+            writer.write_bit(bit);
+        } else {
+            break;
+        }
+    }
+
+    while let Ok(byte) = bit_reader.read(8) {
+        writer.write(byte, 8);
+    }
+}
