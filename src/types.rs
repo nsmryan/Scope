@@ -1,5 +1,4 @@
 use std::ops::{BitOrAssign, Sub, BitAnd, BitOr};
-use std::fmt::Debug;
 
 use bitstream_io::*;
 

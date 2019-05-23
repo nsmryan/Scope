@@ -1,17 +1,23 @@
 extern crate num;
 extern crate bitstream_io;
 
-mod lens;
-mod scope;
-mod vec_scope;
-mod bit_vec_scope;
-mod bit_word_scope;
-mod packed_bit_scope;
-mod shape;
-mod types;
+pub mod lens;
+pub use lens::*;
+pub mod scope;
+pub use scope::*;
+pub mod vec_scope;
+pub use vec_scope::*;
+pub mod bit_vec_scope;
+pub use bit_vec_scope::*;
+pub mod bit_word_scope;
+pub use bit_word_scope::*;
+pub mod packed_bit_scope;
+pub use packed_bit_scope::*;
+pub mod shape;
+pub use shape::*;
+pub mod types;
+pub use types::*;
 
-
-use num::Num;
 
 // TODO add benchmarking:
 // bools for different systems

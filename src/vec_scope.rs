@@ -8,13 +8,13 @@ use crate::shape::*;
 
 /* Vec Scope */
 #[derive(Clone, PartialEq, Eq)]
-struct VecScope<A> {
-    vec: Vec<A>,
-    pos: usize,
+pub struct VecScope<A> {
+    pub vec: Vec<A>,
+    pub pos: usize,
 }
 
 impl<A> VecScope<A> {
-    fn with_vec(vec: Vec<A>) -> Option<VecScope<A>> {
+    pub fn with_vec(vec: Vec<A>) -> Option<VecScope<A>> {
         if vec.len() > 0 {
             Some(VecScope {
                 vec: vec,
@@ -35,17 +35,17 @@ impl<A> Shape for VecScope<A> {
 }
 
 impl<A: Copy> VecScope<A> {
-    fn lens() -> Lens<VecScope<A>, A> {
+    pub fn lens() -> Lens<VecScope<A>, A> {
         lens(Rc::new(|vec: &VecScope<A>| get_vec_scope(vec)),
              Rc::new(|mut vec: &mut VecScope<A>, a: A| set_vec_scope(vec, a)))
     }
 }
 
-fn get_vec_scope<A: Copy>(vec_scope: &VecScope<A>) -> A {
+pub fn get_vec_scope<A: Copy>(vec_scope: &VecScope<A>) -> A {
     vec_scope.vec[vec_scope.pos]
 }
 
-fn set_vec_scope<A>(vec_scope: &mut VecScope<A>, a: A) {
+pub fn set_vec_scope<A>(vec_scope: &mut VecScope<A>, a: A) {
     vec_scope.vec[vec_scope.pos] = a;
 }
 
