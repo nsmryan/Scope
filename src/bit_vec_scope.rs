@@ -3,16 +3,25 @@ use std::rc::Rc;
 
 use crate::lens::*;
 use crate::scope::*;
+use crate::shape::*;
 
 
 #[derive(Clone, PartialEq, Eq)]
-struct BitVecScope {
-    bytes: Vec<u8>,
-    pos: usize,
+pub struct BitVecScope {
+    pub bytes: Vec<u8>,
+    pub pos: usize,
+}
+
+impl Shape for BitVecScope {
+    type Shape = usize;
+
+    fn shape(&self) -> usize {
+        self.bytes.len() * 8
+    }
 }
 
 impl BitVecScope {
-    fn with_bytes(bytes: Vec<u8>) -> Option<BitVecScope> {
+    pub fn with_bytes(bytes: Vec<u8>) -> Option<BitVecScope> {
         if bytes.len() > 0 {
             Some(BitVecScope {
                 bytes: bytes,
@@ -23,26 +32,26 @@ impl BitVecScope {
         }
     }
 
-    fn lens() -> Lens<BitVecScope, bool> {
+    pub fn lens() -> Lens<BitVecScope, bool> {
         lens(Rc::new(|vec: &BitVecScope| get_vec_scope(vec)),
              Rc::new(|mut vec: &mut BitVecScope, a: bool| set_vec_scope(vec, a)))
     }
 
-    fn byte_index(&self) -> usize {
+    pub fn byte_index(&self) -> usize {
         self.pos / 8
     }
 
-    fn current_byte(&self) -> u8 {
+    pub fn current_byte(&self) -> u8 {
         self.bytes[self.byte_index()]
     }
 }
 
-fn get_vec_scope(bit_vec_scope: &BitVecScope) -> bool {
+pub fn get_vec_scope(bit_vec_scope: &BitVecScope) -> bool {
     let bit_index = bit_vec_scope.pos % 8;
     (bit_vec_scope.current_byte() & (1 << bit_index)) != 0
 }
 
-fn set_vec_scope(bit_vec_scope: &mut BitVecScope, a: bool) {
+pub fn set_vec_scope(bit_vec_scope: &mut BitVecScope, a: bool) {
     let bit_index = bit_vec_scope.pos % 8;
     let byte = bit_vec_scope.current_byte();
     let index = bit_vec_scope.byte_index();
