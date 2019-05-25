@@ -2,21 +2,21 @@ extern crate num;
 extern crate bitstream_io;
 
 pub mod lens;
-pub use lens::*;
+pub use crate::lens::*;
 pub mod scope;
-pub use scope::*;
+pub use crate::scope::*;
 pub mod vec_scope;
-pub use vec_scope::*;
+pub use crate::vec_scope::*;
 pub mod bit_vec_scope;
-pub use bit_vec_scope::*;
+pub use crate::bit_vec_scope::*;
 pub mod bit_word_scope;
-pub use bit_word_scope::*;
+pub use crate::bit_word_scope::*;
 pub mod packed_bit_scope;
-pub use packed_bit_scope::*;
+pub use crate::packed_bit_scope::*;
 pub mod shape;
-pub use shape::*;
+pub use crate::shape::*;
 pub mod types;
-pub use types::*;
+pub use crate::types::*;
 
 
 // TODO add benchmarking:

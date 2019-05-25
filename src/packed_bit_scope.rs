@@ -1,11 +1,11 @@
 use std::rc::Rc;
-use std::io::{Read, Write, Cursor};
+use std::cmp;
 
 use num::clamp;
 
-use bitstream_io::*;
-use bitstream_io::read::*;
-use bitstream_io::write::*;
+use num::zero;
+use num::PrimInt;
+use num::cast::NumCast;
 
 use crate::lens::*;
 use crate::shape::*;
@@ -39,14 +39,14 @@ impl PackedBitScope {
 
 impl Scope<usize> for PackedBitScope {
     fn adjust(&mut self, pos: usize) {
-        let max_pos = self.bytes.len() - 1;
+        let max_pos = (self.bytes.len() * 8) / self.bits_used;
         self.pos = clamp(pos, 0, max_pos);
     }
 }
 
 impl Scope<isize> for PackedBitScope {
     fn adjust(&mut self, offset: isize) {
-        let max_pos = self.bytes.len() - 1;
+        let max_pos = (self.bytes.len() * 8) / self.bits_used;
         self.pos = clamp((self.pos as isize) + offset, 0, max_pos as isize) as usize;
     }
 }
@@ -57,7 +57,7 @@ impl PackedBitScope {
              Rc::new(|mut bytes: &mut PackedBitScope, a: bool| set_packedbit_scope_bits(bytes, a)))
     }
 
-    pub fn num_lens<N: Numeric>() -> Lens<PackedBitScope, N> {
+    pub fn num_lens<N: PrimInt>() -> Lens<PackedBitScope, N> {
         lens(Rc::new(|bytes: &PackedBitScope| get_packedbit_scope_num(bytes)),
              Rc::new(|mut bytes: &mut PackedBitScope, n: N| set_packedbit_scope_num(bytes, n)))
     }
@@ -89,29 +89,122 @@ pub fn set_packedbit_scope_bits(packedbit_scope: &mut PackedBitScope, a: bool) {
     packedbit_scope.bytes[index] = loc_set;
 }
 
-pub fn get_packedbit_scope_num<N: Numeric>(packedbit_scope: &PackedBitScope) -> N {
+pub fn get_packedbit_scope_num<N: PrimInt>(packedbit_scope: &PackedBitScope) -> N {
     let bit_pos = packedbit_scope.pos * packedbit_scope.bits_used;
-    let index = bit_pos / 8;
+    let mut index = bit_pos / 8;
     let bit_index = (bit_pos % 8) as u32;
 
-    let mut reader = BitReader::endian(Cursor::new(&packedbit_scope.bytes[index..]), BigEndian);
+    let mut bits_left = packedbit_scope.bits_used;
+    let mut bits_found = 0;
 
-    reader.skip(bit_index).unwrap();
-    //reader.read(N::bits_size()).unwrap()
-    reader.read(packedbit_scope.bits_used as u32).unwrap()
+    let mut n: N = zero();
+
+    // first bits
+    if bit_index != 0 {
+        let bits: N = NumCast::from(packedbit_scope.bytes[index] >> bit_index).unwrap();
+        bits_found += cmp::min(8 - bit_index as usize, packedbit_scope.bits_used);
+        n = n | (bits & NumCast::from(2u32.pow(bits_found as u32) - 1).unwrap());
+        bits_left -= bits_found;
+        index += 1;
+    }
+
+    // middle bits
+    while bits_left >= 8 {
+        let bits: N = NumCast::from(packedbit_scope.bytes[index]).unwrap();
+        n = n | (bits << bits_found);
+        bits_found += 8;
+        bits_left -= 8;
+        index += 1;
+    }
+
+    // final bits
+    if bits_left > 0 {
+        let bits = packedbit_scope.bytes[index] & (2u8.pow(bits_left as u32) - 1);
+        let bits: N = NumCast::from(bits).unwrap();
+        n = n | (bits << bits_found);
+    }
+
+    return n;
 }
 
-pub fn set_packedbit_scope_num<N: Numeric>(packedbit_scope: &mut PackedBitScope, n: N) {
+pub fn set_packedbit_scope_num<N: PrimInt>(packedbit_scope: &mut PackedBitScope, n: N) {
     let bit_pos = packedbit_scope.pos * packedbit_scope.bits_used;
-    let index = bit_pos / 8;
+    let mut index = bit_pos / 8;
     let bit_index = (bit_pos % 8) as u32;
 
-    let initial_bits = packedbit_scope.bytes[index] as u32 & (2u32.pow(bit_index) - 1);
+    let mut bits_left = packedbit_scope.bits_used;
+    let mut bits_used = 0;
 
-    let mut writer = BitWriter::endian(&mut packedbit_scope.bytes[index..], BigEndian);
+    // first byte
+    if bit_index != 0 {
+        let mut first_byte: u8 =
+            packedbit_scope.bytes[index] as u8 & (2u8.pow(bit_index) - 1);
+        first_byte |= n.to_u8().unwrap() << bit_index as usize;
+        packedbit_scope.bytes[index] = first_byte;
 
-    writer.write(initial_bits, bit_index).unwrap();
-    writer.write(packedbit_scope.bits_used as u32, n).unwrap();
+        bits_used = cmp::min(8 - bit_index as usize, packedbit_scope.bits_used);
+        bits_left -= bits_used;
+        index += 1;
+    }
+
+    // middle bytes
+    for _ in 0..(bits_left / 8) {
+        packedbit_scope.bytes[index] = (n >> bits_used).to_u8().unwrap();
+        index += 1;
+        bits_used += 8;
+        bits_left -= 8;
+    }
+
+    // last byte
+    if bits_left > 0 {
+        let high_bits = packedbit_scope.bytes[index] & !(2u8.pow(bits_left as u32) - 1);
+        packedbit_scope.bytes[index] = high_bits | (n >> bits_used).to_u8().unwrap();
+    }
+}
+
+#[test]
+fn test_packedbit_scope_get_2() {
+    let length = 1;
+    let mut packed_scope = PackedBitScope::with_words(vec!(0xA5; length), 2);
+    let packed_lens = PackedBitScope::num_lens::<u8>();
+
+    assert_eq!((packed_lens.view)(&packed_scope), 0x01);
+    packed_scope.adjust(1isize);
+    assert_eq!((packed_lens.view)(&packed_scope), 0x01);
+    packed_scope.adjust(1isize);
+    assert_eq!((packed_lens.view)(&packed_scope), 0x02);
+    packed_scope.adjust(1isize);
+    assert_eq!((packed_lens.view)(&packed_scope), 0x02);
+}
+
+#[test]
+fn test_packedbit_scope_get_9() {
+    let length = 4;
+    let mut packed_scope = PackedBitScope::with_words(vec!(0x11; length), 9);
+    let packed_lens = PackedBitScope::num_lens::<u16>();
+
+    assert_eq!((packed_lens.view)(&packed_scope), 0x111);
+    packed_scope.adjust(1isize);
+    assert_eq!((packed_lens.view)(&packed_scope), 0x088);
+    packed_scope.adjust(1isize);
+    assert_eq!((packed_lens.view)(&packed_scope), 0x044);
+}
+
+#[test]
+fn test_packedbit_scope_set_9() {
+    let length = 4;
+    let mut packed_scope = PackedBitScope::with_words(vec!(0x11; length), 9);
+    let packed_lens = PackedBitScope::num_lens::<u16>();
+
+    (packed_lens.set)(&mut packed_scope, 0xA5);
+    assert_eq!((packed_lens.view)(&packed_scope), 0xA5);
+
+    packed_scope.adjust(1isize);
+    (packed_lens.set)(&mut packed_scope, 0x5A);
+    assert_eq!((packed_lens.view)(&packed_scope), 0x5a);
+
+    packed_scope.adjust(-1isize);
+    assert_eq!((packed_lens.view)(&packed_scope), 0xA5);
 }
 
 /*

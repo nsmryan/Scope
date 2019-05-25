@@ -1,7 +1,10 @@
 use std::rc::Rc;
-use std::ops::{Shl, ShlAssign, Shr, ShrAssign, Rem, RemAssign, BitOrAssign, BitXor, Not, Sub, BitAnd, BitOr};
+//use std::ops::{Shl, ShlAssign, Shr, ShrAssign, Rem, RemAssign, BitOrAssign, BitXor, Not, Sub, BitAnd, BitOr};
 
 use num::clamp;
+
+use num::PrimInt;
+use num::cast::NumCast;
 
 use crate::shape::*;
 use crate::lens::*;
@@ -26,14 +29,14 @@ impl<B> BitWordScope<B> {
     }
 }
 
-impl<B: BitWise> BitWordScope<B> {
+impl<B: PrimInt> BitWordScope<B> {
     fn bit_lens() -> Lens<BitWordScope<B>, bool> {
         lens(Rc::new(|vec: &BitWordScope<B>| get_bitword_scope_bits(vec)),
              Rc::new(|mut vec: &mut BitWordScope<B>, a: bool| set_bitword_scope_bits(vec, a)))
     }
 }
 
-impl<B: BitWise> BitWordScope<B> {
+impl<B: PrimInt> BitWordScope<B> {
     fn lens() -> Lens<BitWordScope<B>, B> {
         lens(Rc::new(|vec: &BitWordScope<B>| get_bitword_scope(vec)),
              Rc::new(|mut vec: &mut BitWordScope<B>, a: B| set_bitword_scope(vec, a)))
@@ -48,28 +51,29 @@ impl<B> Shape for BitWordScope<B> {
     }
 }
 
-fn get_bitword_scope_bits<B: BitWise>(bitword_scope: &BitWordScope<B>) -> bool {
+fn get_bitword_scope_bits<B: PrimInt>(bitword_scope: &BitWordScope<B>) -> bool {
     let index = bitword_scope.pos / bitword_scope.bits_used;
-    let bit_index = (bitword_scope.pos % bitword_scope.bits_used) as u32;
+    let bit_index = (bitword_scope.pos % bitword_scope.bits_used) as usize;
     (bitword_scope.vec[index] & (B::one() << bit_index)) != B::zero()
 }
 
-fn set_bitword_scope_bits<B: BitWise>(bitword_scope: &mut BitWordScope<B>, a: bool) {
+fn set_bitword_scope_bits<B: PrimInt>(bitword_scope: &mut BitWordScope<B>, a: bool) {
     let index = bitword_scope.pos / bitword_scope.bits_used;
-    let bit_index = (bitword_scope.pos % bitword_scope.bits_used) as u32;
+    let bit_index: usize = bitword_scope.pos % bitword_scope.bits_used;
 
     let loc_cleared = bitword_scope.vec[index] & !(B::one() << bit_index);
-    let set_bit = B::from_u8(a as u8) << bit_index;
+    let mut set_bit: B = NumCast::from::<u8>(a as u8).unwrap();
+    let set_bit: B = set_bit << bit_index;
     let loc_set = loc_cleared | set_bit;
     bitword_scope.vec[index] = loc_set;
 }
 
-fn get_bitword_scope<B: BitWise>(bitword_scope: &BitWordScope<B>) -> B {
+fn get_bitword_scope<B: PrimInt>(bitword_scope: &BitWordScope<B>) -> B {
         let index = bitword_scope.pos / bitword_scope.bits_used;
         bitword_scope.vec[index]
 }
 
-fn set_bitword_scope<B: BitWise>(bitword_scope: &mut BitWordScope<B>, a: B) {
+fn set_bitword_scope<B: PrimInt>(bitword_scope: &mut BitWordScope<B>, a: B) {
         let index = bitword_scope.pos / bitword_scope.bits_used;
         bitword_scope.vec[index] = a;
 }
