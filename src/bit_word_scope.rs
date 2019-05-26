@@ -32,14 +32,14 @@ impl<B> BitWordScope<B> {
 impl<B: PrimInt> BitWordScope<B> {
     fn bit_lens() -> Lens<BitWordScope<B>, bool> {
         lens(Rc::new(|vec: &BitWordScope<B>| get_bitword_scope_bits(vec)),
-             Rc::new(|mut vec: &mut BitWordScope<B>, a: bool| set_bitword_scope_bits(vec, a)))
+             Rc::new(|vec: &mut BitWordScope<B>, a: bool| set_bitword_scope_bits(vec, a)))
     }
 }
 
 impl<B: PrimInt> BitWordScope<B> {
     fn lens() -> Lens<BitWordScope<B>, B> {
         lens(Rc::new(|vec: &BitWordScope<B>| get_bitword_scope(vec)),
-             Rc::new(|mut vec: &mut BitWordScope<B>, a: B| set_bitword_scope(vec, a)))
+             Rc::new(|vec: &mut BitWordScope<B>, a: B| set_bitword_scope(vec, a)))
     }
 }
 
@@ -62,7 +62,7 @@ fn set_bitword_scope_bits<B: PrimInt>(bitword_scope: &mut BitWordScope<B>, a: bo
     let bit_index: usize = bitword_scope.pos % bitword_scope.bits_used;
 
     let loc_cleared = bitword_scope.vec[index] & !(B::one() << bit_index);
-    let mut set_bit: B = NumCast::from::<u8>(a as u8).unwrap();
+    let set_bit: B = NumCast::from::<u8>(a as u8).unwrap();
     let set_bit: B = set_bit << bit_index;
     let loc_set = loc_cleared | set_bit;
     bitword_scope.vec[index] = loc_set;

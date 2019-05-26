@@ -54,12 +54,12 @@ impl Scope<isize> for PackedBitScope {
 impl PackedBitScope {
     pub fn bit_lens() -> Lens<PackedBitScope, bool> {
         lens(Rc::new(|bytes: &PackedBitScope| get_packedbit_scope_bits(bytes)),
-             Rc::new(|mut bytes: &mut PackedBitScope, a: bool| set_packedbit_scope_bits(bytes, a)))
+             Rc::new(|bytes: &mut PackedBitScope, a: bool| set_packedbit_scope_bits(bytes, a)))
     }
 
     pub fn num_lens<N: PrimInt>() -> Lens<PackedBitScope, N> {
         lens(Rc::new(|bytes: &PackedBitScope| get_packedbit_scope_num(bytes)),
-             Rc::new(|mut bytes: &mut PackedBitScope, n: N| set_packedbit_scope_num(bytes, n)))
+             Rc::new(|bytes: &mut PackedBitScope, n: N| set_packedbit_scope_num(bytes, n)))
     }
 
     /*

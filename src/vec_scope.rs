@@ -37,7 +37,7 @@ impl<A> Shape for VecScope<A> {
 impl<A: Copy> VecScope<A> {
     pub fn lens() -> Lens<VecScope<A>, A> {
         lens(Rc::new(|vec: &VecScope<A>| get_vec_scope(vec)),
-             Rc::new(|mut vec: &mut VecScope<A>, a: A| set_vec_scope(vec, a)))
+             Rc::new(|vec: &mut VecScope<A>, a: A| set_vec_scope(vec, a)))
     }
 }
 

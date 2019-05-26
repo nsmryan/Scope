@@ -34,7 +34,7 @@ impl BitVecScope {
 
     pub fn lens() -> Lens<BitVecScope, bool> {
         lens(Rc::new(|vec: &BitVecScope| get_vec_scope(vec)),
-             Rc::new(|mut vec: &mut BitVecScope, a: bool| set_vec_scope(vec, a)))
+             Rc::new(|vec: &mut BitVecScope, a: bool| set_vec_scope(vec, a)))
     }
 
     pub fn byte_index(&self) -> usize {
@@ -53,7 +53,6 @@ pub fn get_vec_scope(bit_vec_scope: &BitVecScope) -> bool {
 
 pub fn set_vec_scope(bit_vec_scope: &mut BitVecScope, a: bool) {
     let bit_index = bit_vec_scope.pos % 8;
-    let byte = bit_vec_scope.current_byte();
     let index = bit_vec_scope.byte_index();
     bit_vec_scope.bytes[index] =
         (bit_vec_scope.current_byte() & !(1 << bit_index)) | ((a as u8) << bit_index);
