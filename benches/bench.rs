@@ -8,11 +8,10 @@ use rand::Rng;
 use criterion::Criterion;
 use scope::*;
 
+const LENGTH: usize = 100_000;
 
 fn packed_bits_scope(c: &mut Criterion) {
-    let length = 10000;
-
-    let mut packed_scope = PackedBitScope::with_words(vec!(0; length), 8);
+    let mut packed_scope = PackedBitScope::with_words(vec!(0; LENGTH), 8);
     let packed_lens = PackedBitScope::num_lens::<u8>();
 
     c.bench_function("packed_words_8", move |b| b.iter(|| {
@@ -23,8 +22,8 @@ fn packed_bits_scope(c: &mut Criterion) {
         }
     }));
 
-    let mut num_bytes_needed = length / 8;
-    if length % 8 != 0 {
+    let mut num_bytes_needed = LENGTH / 8;
+    if LENGTH % 8 != 0 {
         num_bytes_needed += 1;
     }
     let mut packed_scope = PackedBitScope::with_words(vec!(0; num_bytes_needed), 1);
@@ -40,10 +39,8 @@ fn packed_bits_scope(c: &mut Criterion) {
 }
 
 fn packed_bits_scope_bool(c: &mut Criterion) {
-    let length = 10000;
-
-    let mut num_bytes_needed = length / 8;
-    if length % 8 != 0 {
+    let mut num_bytes_needed = LENGTH / 8;
+    if LENGTH % 8 != 0 {
         num_bytes_needed += 1;
     }
     let mut packed_scope = PackedBitScope::with_words(vec!(0; num_bytes_needed), 1);
@@ -59,9 +56,7 @@ fn packed_bits_scope_bool(c: &mut Criterion) {
 }
 
 fn vec_scope(c: &mut Criterion) {
-    let length = 10000;
-
-    let mut vec_scope = VecScope::with_vec(vec!(0; length)).unwrap();
+    let mut vec_scope = VecScope::with_vec(vec!(0; LENGTH)).unwrap();
     let vec_lens = VecScope::lens();
 
     c.bench_function("vec_8", move |b| b.iter(|| {
@@ -73,10 +68,8 @@ fn vec_scope(c: &mut Criterion) {
 }
 
 fn bit_vec_scope(c: &mut Criterion) {
-    let length = 10000;
-
-    let mut num_bytes_needed = length / 8;
-    if length % 8 != 0 {
+    let mut num_bytes_needed = LENGTH / 8;
+    if LENGTH % 8 != 0 {
         num_bytes_needed += 1;
     }
 
@@ -92,15 +85,13 @@ fn bit_vec_scope(c: &mut Criterion) {
 }
 
 fn packed_bit_8_random_access(c: &mut Criterion) {
-    let length: usize = 10000;
-
-    let mut indices = Vec::with_capacity(length);
+    let mut indices = Vec::with_capacity(LENGTH);
     let mut rng = rand::thread_rng();
-    for _ in 0..length {
-        indices.push(rng.gen_range(0usize, length));
+    for _ in 0..LENGTH {
+        indices.push(rng.gen_range(0usize, LENGTH));
     }
 
-    let mut packed_scope = PackedBitScope::with_words(vec!(0; length), 8);
+    let mut packed_scope = PackedBitScope::with_words(vec!(0; LENGTH), 8);
     let packed_lens = PackedBitScope::num_lens::<u8>();
     c.bench_function("packed_words_8_random", move |b| b.iter(|| {
         packed_scope.adjust(0usize);
@@ -112,15 +103,13 @@ fn packed_bit_8_random_access(c: &mut Criterion) {
 }
 
 fn packed_bit_1_random_access(c: &mut Criterion) {
-    let length: usize = 10000;
-
-    let mut indices = Vec::with_capacity(length);
+    let mut indices = Vec::with_capacity(LENGTH);
     let mut rng = rand::thread_rng();
-    for _ in 0..length {
-        indices.push(rng.gen_range(0usize, length));
+    for _ in 0..LENGTH {
+        indices.push(rng.gen_range(0usize, LENGTH));
     }
-    let mut num_bytes_needed = length / 8;
-    if length % 8 != 0 {
+    let mut num_bytes_needed = LENGTH / 8;
+    if LENGTH % 8 != 0 {
         num_bytes_needed += 1;
     }
     let mut packed_scope = PackedBitScope::with_words(vec!(0; num_bytes_needed), 1);
@@ -135,14 +124,12 @@ fn packed_bit_1_random_access(c: &mut Criterion) {
 }
 
 fn vec_random_access(c: &mut Criterion) {
-    let length: usize = 10000;
-
-    let mut indices = Vec::with_capacity(length);
+    let mut indices = Vec::with_capacity(LENGTH);
     let mut rng = rand::thread_rng();
-    for _ in 0..length {
-        indices.push(rng.gen_range(0usize, length));
+    for _ in 0..LENGTH {
+        indices.push(rng.gen_range(0usize, LENGTH));
     }
-    let mut vec_scope = VecScope::with_vec(vec!(0; length)).unwrap();
+    let mut vec_scope = VecScope::with_vec(vec!(0; LENGTH)).unwrap();
     let vec_lens = VecScope::lens();
     c.bench_function("vec_8_random", move |b| b.iter(|| {
         for index in indices.iter() {
