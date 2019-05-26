@@ -3,12 +3,14 @@ extern crate rand;
 
 extern crate scope;
 
+use core::ops::Range;
 
 use rand::Rng;
 use criterion::Criterion;
 use scope::*;
 
-const LENGTH: usize = 100_000;
+const LENGTH: usize = 1_000_000;
+//const LENGTH: usize = 100;
 
 fn packed_bits_scope(c: &mut Criterion) {
     let mut packed_scope = PackedBitScope::with_words(vec!(0; LENGTH), 8);
@@ -139,7 +141,64 @@ fn vec_random_access(c: &mut Criterion) {
     }));
 }
 
+fn map_seq(c: &mut Criterion) {
+    let mut indices: Vec<u8> = Vec::with_capacity(LENGTH);
+    let mut vec_scope = VecScope::with_vec(vec!(0; LENGTH)).unwrap();
+    let transform1: Transform<VecScope<u8>, u8, _> =
+        Transform {
+            action: Action {
+                act: Box::new(|val| val + 1),
+                lens: VecScope::lens(),
+            },
+
+            indices: (0..LENGTH).step_by(100),
+        };
+
+    let transform2: Transform<VecScope<u8>, u8, _> =
+        Transform {
+            action: Action {
+                act: Box::new(|val| val + 1),
+                lens: VecScope::lens(),
+            },
+
+            indices: (0..LENGTH).step_by(100),
+        };
+
+    c.bench_function("map_seq", move |b| b.iter(|| {
+        transform1.transform(&mut vec_scope);
+        transform2.transform(&mut vec_scope);
+    }));
+}
+
+fn map_both(c: &mut Criterion) {
+    let mut vec_scope = VecScope::with_vec(vec!(0; LENGTH)).unwrap();
+    let transform1: Transform<VecScope<u8>, u8, _> =
+        Transform {
+            action: Action {
+                act: Box::new(|val| val + 1),
+                lens: VecScope::lens(),
+            },
+
+            indices: (0..LENGTH).step_by(100),
+        };
+
+    let transform2: Transform<VecScope<u8>, u8, _> =
+        Transform {
+            action: Action {
+                act: Box::new(|val| val + 1),
+                lens: VecScope::lens(),
+            },
+
+            indices: (0..LENGTH).step_by(100),
+        };
+
+    c.bench_function("map_both", move |b| b.iter(|| {
+        apply_both(&transform1, &transform2, &mut vec_scope);
+    }));
+}
+
 criterion_group!(packing, packed_bits_scope, packed_bits_scope_bool, vec_scope, bit_vec_scope);
 criterion_group!(random, packed_bit_8_random_access, packed_bit_1_random_access, vec_random_access);
-criterion_main!(packing, random);
+criterion_group!(mapping, map_seq, map_both);
+criterion_main!(packing, random, mapping);
 
