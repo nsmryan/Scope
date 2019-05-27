@@ -142,9 +142,9 @@ fn vec_random_access(c: &mut Criterion) {
 }
 
 fn map_seq(c: &mut Criterion) {
-    let mut indices: Vec<u8> = Vec::with_capacity(LENGTH);
+    let mut indices: Vec<u32> = Vec::with_capacity(LENGTH);
     let mut vec_scope = VecScope::with_vec(vec!(0; LENGTH)).unwrap();
-    let transform1: Transform<VecScope<u8>, u8, _> =
+    let transform1: Transform<VecScope<u32>, u32, _> =
         Transform {
             action: Action {
                 act: Box::new(|val| val + 1),
@@ -154,7 +154,7 @@ fn map_seq(c: &mut Criterion) {
             indices: (0..LENGTH).step_by(100),
         };
 
-    let transform2: Transform<VecScope<u8>, u8, _> =
+    let transform2: Transform<VecScope<u32>, u32, _> =
         Transform {
             action: Action {
                 act: Box::new(|val| val + 1),
@@ -170,9 +170,10 @@ fn map_seq(c: &mut Criterion) {
     }));
 }
 
-fn map_both(c: &mut Criterion) {
+fn map_single(c: &mut Criterion) {
+    let mut indices: Vec<u32> = Vec::with_capacity(LENGTH);
     let mut vec_scope = VecScope::with_vec(vec!(0; LENGTH)).unwrap();
-    let transform1: Transform<VecScope<u8>, u8, _> =
+    let transform: Transform<VecScope<u32>, u32, _> =
         Transform {
             action: Action {
                 act: Box::new(|val| val + 1),
@@ -182,7 +183,24 @@ fn map_both(c: &mut Criterion) {
             indices: (0..LENGTH).step_by(100),
         };
 
-    let transform2: Transform<VecScope<u8>, u8, _> =
+    c.bench_function("map_single", move |b| b.iter(|| {
+        transform.transform(&mut vec_scope);
+    }));
+}
+
+fn map_both(c: &mut Criterion) {
+    let mut vec_scope = VecScope::with_vec(vec!(0; LENGTH)).unwrap();
+    let transform1: Transform<VecScope<u32>, u32, _> =
+        Transform {
+            action: Action {
+                act: Box::new(|val| val + 1),
+                lens: VecScope::lens(),
+            },
+
+            indices: (0..LENGTH).step_by(100),
+        };
+
+    let transform2: Transform<VecScope<u32>, u32, _> =
         Transform {
             action: Action {
                 act: Box::new(|val| val + 1),
@@ -199,6 +217,6 @@ fn map_both(c: &mut Criterion) {
 
 criterion_group!(packing, packed_bits_scope, packed_bits_scope_bool, vec_scope, bit_vec_scope);
 criterion_group!(random, packed_bit_8_random_access, packed_bit_1_random_access, vec_random_access);
-criterion_group!(mapping, map_seq, map_both);
+criterion_group!(mapping, map_single, map_seq, map_both);
 criterion_main!(packing, random, mapping);
 
