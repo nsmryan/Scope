@@ -121,3 +121,127 @@ fn test_vec_scope_fields() {
     assert_eq!((vec_pair_lens.view)(&vec_scope), 3);
 }
 
+#[test]
+fn vec_scope_seq() {
+    let length = 100_000_000;
+    let step = 100;
+    let times = 10;
+
+    let mut indices: Vec<u32> = Vec::with_capacity(length);
+    let mut vec_scope = VecScope::with_vec(vec!(0; length)).unwrap();
+    let transform1 =
+        Transform::make_transform(VecScope::lens(),
+                                  (0..length).step_by(step),
+                                  |val| val + 1);
+
+    let transform2 =
+        Transform::make_transform(VecScope::lens(),
+                                  (0..length).step_by(step),
+                                  |val| val + 1);
+
+    for _ in 0..times {
+        transform1.transform(&mut vec_scope);
+        transform2.transform(&mut vec_scope);
+    }
+}
+
+#[test]
+fn vec_scope_single() {
+    let length = 100_000_000;
+    let step = 100;
+    let times = 10;
+
+    let mut indices: Vec<u32> = Vec::with_capacity(length);
+    let mut vec_scope = VecScope::with_vec(vec!(0; length)).unwrap();
+    let transform1 =
+        Transform::make_transform(VecScope::lens(),
+                                  (0..length).step_by(step),
+                                  |val| val + 1);
+
+    for _ in 0..times {
+        transform1.transform(&mut vec_scope);
+    }
+}
+
+fn vec_scope_simple() {
+    let length = 100_000_000;
+    let step = 100;
+    let times = 10;
+
+    let mut vec = vec!(0; length);
+
+    for _ in 0..times {
+        for index in (0..length).step_by(step) {
+            vec[index] += 1;
+        }
+    }
+}
+
+#[test]
+fn vec_scope_both() {
+    let length = 100_000_000;
+    let step = 100;
+    let times = 10;
+
+    let mut vec_scope = VecScope::with_vec(vec!(0; length)).unwrap();
+    let transform1 =
+        Transform::make_transform(VecScope::lens(),
+                                  (0..length).step_by(step),
+                                  |val| val + 1);
+
+    let transform2 =
+        Transform::make_transform(VecScope::lens(),
+                                  (0..length).step_by(step),
+                                  |val| val + 1);
+
+    for _ in 0..times {
+        apply_both(&transform1, &transform2, &mut vec_scope);
+    }
+}
+
+#[test]
+fn vec_scope_many_2() {
+    let length = 100_000_000;
+    let step = 100;
+    let times = 10;
+
+    let mut vec_scope = VecScope::with_vec(vec!(0; length)).unwrap();
+    let transform1 =
+        Transform::make_transform(VecScope::lens(),
+                                  (0..length).step_by(step),
+                                  |val| val + 1);
+
+    let transform2 =
+        Transform::make_transform(VecScope::lens(),
+                                  (0..length).step_by(step),
+                                  |val| val + 1);
+
+    let transforms = vec!(transform1, transform2);
+    apply_many(transforms, &mut vec_scope);
+}
+
+#[test]
+fn vec_scope_many_3() {
+    let length = 100_000_000;
+    let step = 100;
+    let times = 10;
+
+    let mut vec_scope = VecScope::with_vec(vec!(0; length)).unwrap();
+    let transform1 =
+        Transform::make_transform(VecScope::lens(),
+                                  (0..length).step_by(step),
+                                  |val| val + 1);
+
+    let transform2 =
+        Transform::make_transform(VecScope::lens(),
+                                  (0..length).step_by(step),
+                                  |val| val + 1);
+
+    let transform3 =
+        Transform::make_transform(VecScope::lens(),
+                                  (0..length).step_by(step),
+                                  |val| val + 1);
+
+    let transforms = vec!(transform1, transform2, transform3);
+    apply_many(transforms, &mut vec_scope);
+}

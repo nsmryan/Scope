@@ -1,6 +1,8 @@
 
 use std::iter::*;
 use std::boxed::*;
+use std::collections::binary_heap::*;
+use std::cmp::Ordering;
 
 use num::{PrimInt, zero, one};
 
@@ -39,6 +41,18 @@ impl<S: Shape + Scope<I>, I, A, Ix: Clone + IntoIterator<Item=I>> Transform<S, A
             self.action.act(s);
         }
     }
+
+    pub fn make_transform<F>(lens: Lens<S, A>, indices: Ix, f: F) -> Transform<S, A, Ix>
+        where F: Fn(A) -> A + 'static {
+        Transform {
+            action: Action {
+                act: Box::new(f),
+                lens: lens,
+            },
+
+            indices: indices,
+        }
+    }
 }
 
 pub fn apply_both<S, A, Ix, I>(first: &Transform<S, A, Ix>,
@@ -48,43 +62,84 @@ pub fn apply_both<S, A, Ix, I>(first: &Transform<S, A, Ix>,
           Ix: IntoIterator<Item=I> + Clone,
           I: PartialOrd + Copy {
 
-    let mut ixs1 = first.indices.clone().into_iter().peekable();
-    let mut ixs2 = second.indices.clone().into_iter().peekable();
+    let mut ixs1 = first.indices.clone().into_iter();
+    let mut ixs2 = second.indices.clone().into_iter();
 
-    loop {
-        match (ixs1.peek(), ixs2.peek()) {
-            (Some(ix1), Some(ix2)) => {
-                if *ix1 < *ix2 {
-                    s.adjust(*ix1);
-                    first.action.act(s);
-                    ixs1.next();
-                } else if *ix1 == *ix2 {
-                    s.adjust(*ix1);
-                    first.action.act(s);
-                    second.action.act(s);
-                    ixs1.next();
-                    ixs2.next();
-                } else {
-                    s.adjust(*ix2);
-                    second.action.act(s);
-                    ixs2.next();
-                }
-            },
-
-            (Some(ix1), None) => {
-                s.adjust(*ix1);
+    if let (Some(mut ix1), Some(mut ix2)) = (ixs1.next(), ixs2.next()) {
+        loop {
+            if ix1 < ix2 {
+                s.adjust(ix1);
                 first.action.act(s);
-                ixs1.next();
-            },
 
-            (None, Some(ix2)) => {
-                s.adjust(*ix2);
+                if let Some(new_ix) = ixs1.next() {
+                    ix1 = new_ix;
+                } else {
+                    break;
+                }
+            } else {
+                s.adjust(ix2);
                 second.action.act(s);
-                ixs2.next();
-            },
 
-            (None, None) => {
-                break;
+                if let Some(new_ix) = ixs2.next() {
+                    ix2 = new_ix;
+                } else {
+                    break;
+                }
+            }
+        }
+    }
+
+    for index in ixs1 {
+        s.adjust(index);
+        first.action.act(s);
+    }
+
+    for index in ixs2 {
+        s.adjust(index);
+        second.action.act(s);
+    }
+}
+
+#[derive(Eq, PartialEq)]
+struct Queued<I> {
+    ix: I,
+    index: usize,
+}
+
+impl<I: Ord> PartialOrd for Queued<I> {
+    fn partial_cmp(&self, other: &Queued<I>) -> Option<Ordering> {
+        Some(self.ix.cmp(&other.ix))
+    }
+}
+
+impl<I: Ord> Ord for Queued<I> {
+    fn cmp(&self, other: &Queued<I>) -> Ordering {
+        self.ix.cmp(&other.ix)
+    }
+}
+
+pub fn apply_many<S, A, Ix, I>(transforms: Vec<Transform<S, A, Ix>>,
+                               s: &mut S) 
+    where S: Scope<I> + Shape,
+          Ix: IntoIterator<Item=I> + Clone,
+          I: PartialOrd + Ord + Copy {
+
+    let mut pqueue = BinaryHeap::new();
+    let mut ix_vec = vec!();
+
+    for index in 0..transforms.len() {
+        ix_vec.push(transforms[index].indices.clone().into_iter());
+        if let Some(ix) = ix_vec[index].next() {
+            pqueue.push(Queued { ix: ix, index: index });
+        }
+    }
+
+    while pqueue.len() > 0 {
+        if let Some(queued) = pqueue.pop() {
+            s.adjust(queued.ix);
+            transforms[queued.index].action.act(s);
+            if let Some(ix) = ix_vec[queued.index].next() {
+                pqueue.push(Queued { ix: ix, index: queued.index });
             }
         }
     }
