@@ -2,6 +2,7 @@
 use std::iter::*;
 use std::boxed::*;
 use std::collections::binary_heap::*;
+use std::collections::VecDeque;
 use std::cmp::Ordering;
 
 use num::{PrimInt, zero, one};
@@ -124,22 +125,28 @@ pub fn apply_many<S, A, Ix, I>(transforms: Vec<Transform<S, A, Ix>>,
           Ix: IntoIterator<Item=I> + Clone,
           I: PartialOrd + Ord + Copy {
 
-    let mut pqueue = BinaryHeap::new();
+    let mut pqueue = VecDeque::new();
     let mut ix_vec = vec!();
 
     for index in 0..transforms.len() {
         ix_vec.push(transforms[index].indices.clone().into_iter());
         if let Some(ix) = ix_vec[index].next() {
-            pqueue.push(Queued { ix: ix, index: index });
+            pqueue.push_back(Queued { ix: ix, index: index });
         }
     }
 
     while pqueue.len() > 0 {
-        if let Some(queued) = pqueue.pop() {
+        if let Some(queued) = pqueue.pop_front() {
             s.adjust(queued.ix);
             transforms[queued.index].action.act(s);
             if let Some(ix) = ix_vec[queued.index].next() {
-                pqueue.push(Queued { ix: ix, index: queued.index });
+                let new_queued = Queued { ix: ix, index: queued.index };
+
+                if let Some(insert_index) = pqueue.iter().position(|queued| queued.ix > ix) {
+                    pqueue.insert(insert_index, new_queued);
+                } else {
+                    pqueue.push_back(new_queued);
+                }
             }
         }
     }

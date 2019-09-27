@@ -295,5 +295,6 @@ fn map_many_4(c: &mut Criterion) {
 criterion_group!(packing, packed_bits_scope, packed_bits_scope_bool, vec_scope, bit_vec_scope);
 criterion_group!(random, packed_bit_8_random_access, packed_bit_1_random_access, vec_random_access);
 criterion_group!(mapping, map_single, map_seq, map_seq_4, map_both, map_many_2, map_many_3, map_many_4);
+
 criterion_main!(packing, random, mapping);
 
