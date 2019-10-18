@@ -7,6 +7,7 @@ use core::ops::Range;
 
 use rand::Rng;
 use criterion::Criterion;
+use myopic::lens::*;
 use scope::*;
 
 const LENGTH: usize = 1_000_000;
@@ -58,14 +59,46 @@ fn packed_bits_scope_bool(c: &mut Criterion) {
     }));
 }
 
+fn vec_raw(c: &mut Criterion) {
+    let mut vec = vec!(0; LENGTH);
+
+    c.bench_function("vec_raw", move |b| b.iter(|| {
+        for i in 0..vec.len() {
+            vec[i] = 1;
+        }
+    }));
+}
+
 fn vec_scope(c: &mut Criterion) {
     let mut vec_scope = VecScope::with_vec(vec!(0; LENGTH)).unwrap();
     let vec_lens = VecScope::lens();
 
     c.bench_function("vec_8", move |b| b.iter(|| {
         for _ in 0..vec_scope.shape() {
-            (vec_lens.set)(&mut vec_scope, 1);
+            vec_lens.set(&mut vec_scope, 1);
             vec_scope.adjust(1isize);
+        }
+    }));
+}
+
+fn vec_raw_step(c: &mut Criterion) {
+    let mut vec = vec!(0; LENGTH);
+
+    c.bench_function("vec_raw_step", move |b| b.iter(|| {
+        for i in (0..vec.len()).step_by(STEP) {
+            vec[i] = 1;
+        }
+    }));
+}
+
+fn vec_scope_step(c: &mut Criterion) {
+    let mut vec_scope = VecScope::with_vec(vec!(0; LENGTH)).unwrap();
+    let vec_lens = VecScope::lens();
+
+    c.bench_function("vec_8_step", move |b| b.iter(|| {
+        for i in (0..vec_scope.shape()).step_by(STEP) {
+            vec_lens.set(&mut vec_scope, 1);
+            vec_scope.adjust(i);
         }
     }));
 }
@@ -136,14 +169,13 @@ fn vec_random_access(c: &mut Criterion) {
     let vec_lens = VecScope::lens();
     c.bench_function("vec_8_random", move |b| b.iter(|| {
         for index in indices.iter() {
-            (vec_lens.set)(&mut vec_scope, 1);
+            vec_lens.set(&mut vec_scope, 1);
             vec_scope.adjust(*index);
         }
     }));
 }
 
 fn map_seq(c: &mut Criterion) {
-    let mut indices: Vec<u32> = Vec::with_capacity(LENGTH);
     let mut vec_scope = VecScope::with_vec(vec!(0; LENGTH)).unwrap();
     let transform1 =
         Transform::make_transform(VecScope::lens(),
@@ -162,7 +194,6 @@ fn map_seq(c: &mut Criterion) {
 }
 
 fn map_seq_4(c: &mut Criterion) {
-    let mut indices: Vec<u32> = Vec::with_capacity(LENGTH);
     let mut vec_scope = VecScope::with_vec(vec!(0; LENGTH)).unwrap();
     let transform1 =
         Transform::make_transform(VecScope::lens(),
@@ -193,7 +224,6 @@ fn map_seq_4(c: &mut Criterion) {
 }
 
 fn map_single(c: &mut Criterion) {
-    let mut indices: Vec<u32> = Vec::with_capacity(LENGTH);
     let mut vec_scope = VecScope::with_vec(vec!(0; LENGTH)).unwrap();
     let transform =
         Transform::make_transform(VecScope::lens(),
@@ -292,7 +322,7 @@ fn map_many_4(c: &mut Criterion) {
     }));
 }
 
-criterion_group!(packing, packed_bits_scope, packed_bits_scope_bool, vec_scope, bit_vec_scope);
+criterion_group!(packing, packed_bits_scope, packed_bits_scope_bool, vec_scope, bit_vec_scope, vec_raw, vec_raw_step, vec_scope_step);
 criterion_group!(random, packed_bit_8_random_access, packed_bit_1_random_access, vec_random_access);
 criterion_group!(mapping, map_single, map_seq, map_seq_4, map_both, map_many_2, map_many_3, map_many_4);
 
